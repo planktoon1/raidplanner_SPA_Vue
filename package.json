@@ -1,0 +1,20 @@
+{
+  "name": "fullstack_vue_express",
+  "version": "1.0.0",
+  "description": "Full stack Vue and Express app",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js"
+  },
+  "author": "Frederik OE",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.4",
+    "express": "^4.16.4",
+    "mongodb": "^3.1.8"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.4"
+  }
+}
