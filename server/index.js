@@ -7,8 +7,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const posts = require('./routes/api/posts');
-app.use('/api/posts', posts);
+const gyms = require('./routes/api/gyms');
+app.use('/api/gyms', gyms);
 
 // Handle production
 if(process.env.NODE_ENV === 'production') {
