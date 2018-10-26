@@ -7,8 +7,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const gyms = require('./routes/api/gyms');
-app.use('/api/gyms', gyms);
+const raids = require('./routes/api/raids');
+app.use('/api/raids', raids);
 
 // Handle production
 if(process.env.NODE_ENV === 'production') {
