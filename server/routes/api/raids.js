@@ -9,7 +9,7 @@ router.get('/', async (req,res) => {
     res.send(await raids.find({}).toArray());
 });
 
-// Add raids
+// Add raid
 router.post('/',async (req, res) => {
     const raids = await loadRaidsCollection();
     await raids.insertOne({
@@ -23,7 +23,19 @@ router.post('/',async (req, res) => {
     res.status(201).send();
 })
 
-// Delete raids
+// Hatch a raid - pokemon still unknown, time and tier gets updated
+router.post('/hatch', async (req, res) => {
+    const raids = await loadRaidsCollection();
+    const raid = await raids.findOne({_id: new mongodb.ObjectID(req.body.id)});
+    await raids.updateOne({_id: new mongodb.ObjectID(req.body.id)}, { 
+        $set: { 
+            tier:`Hatched: ${raid.tier}`,
+            time: new Date(raid.hatchTime.getTime() + 45*60000) //Add 45 minutes to the time
+        }});
+    res.status(200).send();
+});
+
+// Delete raid
 router.delete('/:id', async (req, res) => {
     const raids = await loadRaidsCollection();
     await raids.deleteOne({_id: new mongodb.ObjectID(req.params.id)});
