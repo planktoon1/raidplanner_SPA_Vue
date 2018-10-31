@@ -3,34 +3,61 @@ const mongodb = require('mongodb');
 
 const router = express.Router();
 
-// Get raids
+// Get active raids
 router.get('/', async (req,res) => {
     const raids = await loadRaidsCollection();
-    res.send(await raids.find({}).toArray());
+    res.send(await raids.find({state: {$in: ["hatched","nothatched"]}}).toArray());
 });
 
-// Add raid
-router.post('/',async (req, res) => {
+// Active a raid - not hatched. params => POST body: { id: "", hatchTime: "", tier: ""}
+router.post('/activate/nothatched',async (req, res) => {
     const raids = await loadRaidsCollection();
-    await raids.insertOne({
-        navn: req.body.navn,
-        tier: req.body.tier,
-        pokemon: req.body.pokemon,
-        hatchTime: req.body.hatchTime,
-        finishTime: req.body.finishTime
-    });
-    
-    res.status(201).send();
+    await raids.updateOne({_id: new mongodb.ObjectID(req.body.id)}, { 
+        $set: { 
+            state: 'nothatched',
+            hatchTime: req.body.hatchTime,
+            tier: req.body.tier
+        }});
+    res.status(200).send();
 })
 
-// Hatch a raid - pokemon still unknown, time and tier gets updated
+// Active a raid - already hatched. params => POST body: { id: "", finishTime: "", pokemon: ""}
+router.post('/activate/hatched',async (req, res) => {
+    const raids = await loadRaidsCollection();
+    await raids.updateOne({_id: new mongodb.ObjectID(req.body.id)}, { 
+        $set: { 
+            state: 'hatched',
+            finishTime: req.body.finishTime,
+            pokemon: req.body.pokemon
+        }});
+    res.status(200).send();
+})
+
+// Hatch a raid - pokemon still unknown, finishtime is set to hatchtime plus 45 minutes
+//params => POST body: { id: ""}
 router.post('/hatch', async (req, res) => {
     const raids = await loadRaidsCollection();
     const raid = await raids.findOne({_id: new mongodb.ObjectID(req.body.id)});
     await raids.updateOne({_id: new mongodb.ObjectID(req.body.id)}, { 
         $set: { 
-            tier:`Hatched: ${raid.tier}`,
-            time: new Date(raid.hatchTime.getTime() + 45*60000) //Add 45 minutes to the time
+            state: 'hatched',
+            pokemon: `Hatched: ${raid.tier}`,
+            finishTime: new Date(raid.hatchTime.getTime() + 45*60000) //Add 45 minutes to the time
+        }});
+    res.status(200).send();
+});
+
+// Deactivate a raid - set all the fields back to default and the state to inactive
+//params => POST body: { id: ""}
+router.post('/deactivate', async (req, res) => {
+    const raids = await loadRaidsCollection();
+    await raids.updateOne({_id: new mongodb.ObjectID(req.body.id)}, { 
+        $set: { 
+            state: 'inactive',
+            hatchTime: null,
+            finishTime: null,
+            tier: null,
+            pokemon: null
         }});
     res.status(200).send();
 });
