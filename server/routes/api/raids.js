@@ -3,12 +3,21 @@ const mongodb = require('mongodb');
 
 const router = express.Router();
 
+router.raids = [];
+router.raidGroups = [];
+
+// Initialize 
+initialize();
+async function initialize(){
+    const raidsCol = await loadRaidsCollection();
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
+    const raidGroupsCol = await loadParticipantsCollection();
+    router.raidGroups = await raidGroupsCol.find({}).toArray(); // du kom hertil
+}
+
 // Get active raids
 router.get('/', async (req,res) => {
-    const raidsCol = await loadRaidsCollection();
-    const raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray()
-
-    for (raid of raids) {
+    for (raid of router.raids) {
         if (raid.state == "hatched" && overDue(raid.finishTime)) {
             deactivateRaid(raid._id);
             raid.state = "inactive";
@@ -39,13 +48,13 @@ router.get('/', async (req,res) => {
             return false;
     }
 
-    res.send(raids);
+    res.send(router.raids);
 });
 
 // Active a raid - not hatched. params => POST body: { id: "", hatchTime: "", tier: ""}
 router.post('/activate/nothatched',async (req, res) => {
-    const raids = await loadRaidsCollection();
-    await raids.updateOne({_id: req.body.id}, { 
+    const raidsCol = await loadRaidsCollection();
+    await raidsCol.updateOne({_id: req.body.id}, { 
         $set: { 
             state: 'nothatched',
             hatchTime: req.body.hatchTime,
@@ -53,52 +62,92 @@ router.post('/activate/nothatched',async (req, res) => {
         }});
     
     res.status(200).send();
+
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
     console.log(`${req.body.id} activated. Hatching at: ${req.body.hatchTime} as ${req.body.tier}`);
 })
 
 // Active a raid - already hatched. params => POST body: { id: "", finishTime: "", pokemon: ""}
 router.post('/activate/hatched',async (req, res) => {
-    const raids = await loadRaidsCollection();
-    await raids.updateOne({_id: req.body.id}, { 
+    const raidsCol = await loadRaidsCollection();
+    await raidsCol.updateOne({_id: req.body.id}, { 
         $set: { 
             state: 'hatched',
             finishTime: req.body.finishTime,
             pokemon: req.body.pokemon
         }});
     res.status(200).send();
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
     console.log(`${req.body.id} activated. Finishing at: ${req.body.finishTime} as ${req.body.pokemon}`);
 })
 
 // Hatch a raid - pokemon still unknown, finishtime is set to hatchtime plus 45 minutes
 //params => POST body: { id: ""}
 router.post('/hatch', async (req, res) => { //Through API request
-    const raids = await loadRaidsCollection();
-    const raid = await raids.findOne({_id: req.body.id});
-    await raids.updateOne({_id: req.body.id}, { 
+    const raidsCol = await loadRaidsCollection();
+    const raid = await raidsCol.findOne({_id: req.body.id});
+    await raidsCol.updateOne({_id: req.body.id}, { 
         $set: { 
             state: 'hatched',
             pokemon: `Hatched: ${raid.tier}`,
             finishTime: new Date(raid.hatchTime).getTime() + 45*60000 //Add 45 minutes to the time
         }});
     res.status(200).send();
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 });
 
 async function hatchRaid(id)  { //For use internally in the server application
-    const raids = await loadRaidsCollection();
-    const raid = await raids.findOne({_id: id});
-    await raids.updateOne({_id: id}, { 
+    const raidsCol = await loadRaidsCollection();
+    const raid = await raidsCol.findOne({_id: id});
+    await raidsCol.updateOne({_id: id}, { 
         $set: { 
             state: 'hatched',
             pokemon: `Hatched: ${raid.tier}`,
             finishTime: new Date(raid.hatchTime).getTime() + 45*60000 //Add 45 minutes to the time
         }});
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 }
+
+// Get raidgroups on a specific raid
+// params => POST body: {raidId: ""}
+router.post('/raidgroups', async (req, res) => {
+    let raidGroupsWithId = [];
+    raidGroupsWithId = router.raidGroups.filter((raid) => {return raid.raidId == req.body.raidId});
+    if (raidGroupsWithId.length > 0) {
+        res.send(raidGroupsWithId);
+    } else res.status(404).send();
+    
+});
+
+// Create raid group
+// params => POST body: {raidId: "", name: "", startTime: ""}
+router.post('/raidgroups/create', async (req, res) => {
+    //TODO if (raid exists) else send 404 
+    router.raidGroups.push({
+        _id:            new mongodb.ObjectID(),
+        raidId:         req.body.raidId,
+        name:           req.body.name,
+        startTime:      new Date(req.body.startTime),
+        participants:   []
+    });
+    res.status(200).send();
+});
+
+// Add participant to raid group
+//params => POST body: {id: "", name: ""}
+router.post('/raidgroups/participate', async (req, res) => {
+    const raidgroup = router.raidGroups.find((raid) => {return raid._id == req.body.id});
+    if (raidgroup) {
+        raidgroup.participants.push(req.body.name);
+        res.status(200).send();
+    } else res.status(404).send();
+});
 
 // Deactivate a raid - set all the fields back to default and the state to inactive
 //params => POST body: { id: ""}
 router.post('/deactivate', async (req, res) => {
-    const raids = await loadRaidsCollection();
-    await raids.updateOne({_id: req.body.id}, { 
+    const raidsCol = await loadRaidsCollection();
+    await raidsCol.updateOne({_id: req.body.id}, { 
         $set: { 
             state: 'inactive',
             hatchTime: null,
@@ -107,11 +156,12 @@ router.post('/deactivate', async (req, res) => {
             pokemon: null
         }});
     res.status(200).send();
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 });
 
 async function deactivateRaid(id) {
-    const raids = await loadRaidsCollection();
-    await raids.updateOne({_id:id}, { 
+    const raidsCol = await loadRaidsCollection();
+    await raidsCol.updateOne({_id:id}, { 
         $set: { 
             state: 'inactive',
             hatchTime: null,
@@ -119,15 +169,18 @@ async function deactivateRaid(id) {
             tier: null,
             pokemon: null
         }});
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 };
 
 // Delete raid - not used anywhere
 router.delete('/:id', async (req, res) => {
-    const raids = await loadRaidsCollection();
-    await raids.deleteOne({_id: req.params.id});
+    const raidsCol = await loadRaidsCollection();
+    await raidsCol.deleteOne({_id: req.params.id});
     res.status(200).send();
+    router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 });
 
+// Make connection to the raids collection
 async function loadRaidsCollection(){
     const client = await mongodb.MongoClient.connect(
         'mongodb://abc123:abc123@ds239873.mlab.com:39873/vue_express',
@@ -135,6 +188,16 @@ async function loadRaidsCollection(){
     });
 
     return client.db('vue_express').collection('viby_raids');
+}
+
+// Make connection to the raidgroup collection
+async function loadParticipantsCollection(){
+    const client = await mongodb.MongoClient.connect(
+        'mongodb://abc123:abc123@ds239873.mlab.com:39873/vue_express',
+        {useNewUrlParser: true
+    });
+
+    return client.db('vue_express').collection('viby_participants');
 }
 
 module.exports = router;
