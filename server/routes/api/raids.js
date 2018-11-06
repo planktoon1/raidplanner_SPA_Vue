@@ -122,7 +122,7 @@ router.post('/raidgroups', async (req, res) => {
 // Create raid group
 // params => POST body: {raidId: "", name: "", startTime: ""}
 router.post('/raidgroups/create', async (req, res) => {
-    //TODO if (raid exists) else send 404 
+    //TODO if (raid exists){do things} else send 404 response
     router.raidGroups.push({
         _id:            new mongodb.ObjectID(),
         raidId:         req.body.raidId,
