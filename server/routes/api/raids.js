@@ -123,14 +123,15 @@ router.post('/raidgroups', async (req, res) => {
 // params => POST body: {raidId: "", name: "", startTime: ""}
 router.post('/raidgroups/create', async (req, res) => {
     //TODO if (raid exists){do things} else send 404 response
+    const new_id = new mongodb.ObjectID();
     router.raidGroups.push({
-        _id:            new mongodb.ObjectID(),
+        _id:            new_id,
         raidId:         req.body.raidId,
         name:           req.body.name,
         startTime:      new Date(req.body.startTime),
         participants:   []
     });
-    res.status(200).send();
+    res.status(200).send(new_id);
 });
 
 // Add participant to raid group
