@@ -11,8 +11,8 @@ initialize();
 async function initialize(){
     const raidsCol = await loadRaidsCollection();
     router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
-    const raidGroupsCol = await loadParticipantsCollection();
-    router.raidGroups = await raidGroupsCol.find({}).toArray(); // du kom hertil
+    const raidGroupsCol = await loadRaidGroupCollection();
+    router.raidGroups = await raidGroupsCol.find({}).toArray();
 }
 
 // Get active raids
@@ -143,6 +143,26 @@ router.post('/raidgroups/participate', async (req, res) => {
     } else res.status(404).send();
 });
 
+// Delete all raidgroups with a specific raidId
+// params => DELETE params: '../:raidId'
+router.delete('/raidgroups/:raidId', async (req, res) => {
+    router.raidGroups = router.raidGroups.filter((raid) => {return raid.raidId != req.params.raidId});
+
+    //integrate db //TODO
+    /*await router.raidGroupsCol.deleteMany({"raidId": req.params.raidId});
+    res.status(200).send();
+    router.raidGroups = await raidGroupsCol.find({}).toArray();*/
+});
+
+async function deleteRaidGroups(raidId) {
+    router.raidGroups = router.raidGroups.filter((raid) => {return raid.raidId != raidId});
+
+    //integrate db //TODO
+    /*await router.raidGroupsCol.deleteMany({"raidId": req.params.raidId});
+    res.status(200).send();
+    router.raidGroups = await raidGroupsCol.find({}).toArray();*/
+}
+
 // Deactivate a raid - set all the fields back to default and the state to inactive
 //params => POST body: { id: ""}
 router.post('/deactivate', async (req, res) => {
@@ -155,6 +175,7 @@ router.post('/deactivate', async (req, res) => {
             tier: null,
             pokemon: null
         }});
+    deleteRaidGroups(req.body.id)
     res.status(200).send();
     router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 });
@@ -169,6 +190,7 @@ async function deactivateRaid(id) {
             tier: null,
             pokemon: null
         }});
+    deleteRaidGroups(id);
     router.raids = await raidsCol.find({state: {$in: ["hatched","nothatched"]}}).toArray();
 };
 
@@ -191,13 +213,13 @@ async function loadRaidsCollection(){
 }
 
 // Make connection to the raidgroup collection
-async function loadParticipantsCollection(){
+async function loadRaidGroupCollection(){
     const client = await mongodb.MongoClient.connect(
         'mongodb://abc123:abc123@ds239873.mlab.com:39873/vue_express',
         {useNewUrlParser: true
     });
 
-    return client.db('vue_express').collection('viby_participants');
+    return client.db('vue_express').collection('viby_raidGroups');
 }
 
 module.exports = router;
