@@ -1,7 +1,7 @@
 {
-  "name": "fullstack_vue_express",
+  "name": "Pokemon Go - Raid Planner - Viby",
   "version": "1.0.0",
-  "description": "Full stack Vue and Express app",
+  "description": "A raidplanner for pokemon go, made to work in the city Viby",
   "main": "index.js",
   "scripts": {
     "start": "node server/index.js",
