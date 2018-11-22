@@ -1,5 +1,5 @@
 {
-  "name": "Pokemon Go - Raid Planner - Viby",
+  "name": "RaidPlannerViby",
   "version": "1.0.0",
   "description": "A raidplanner for pokemon go, made to work in the city Viby",
   "main": "index.js",
