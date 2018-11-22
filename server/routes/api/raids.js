@@ -51,6 +51,20 @@ router.get('/', async (req,res) => {
     res.send(router.raids);
 });
 
+// Get all raids
+router.get('/pokemons', async (req,res) => {
+    const pokemonsCol = await loadPokemonsCollection();
+    let allpokemons = await pokemonsCol.find({}).toArray();
+    res.send(allpokemons);
+});
+
+// Get all raids
+router.get('/all', async (req,res) => {
+    const raidsCol = await loadRaidsCollection();
+    let allRaids = await raidsCol.find({}).toArray();
+    res.send(allRaids);
+});
+
 // Active a raid - not hatched. params => POST body: { id: "", hatchTime: "", tier: ""}
 router.post('/activate/nothatched',async (req, res) => {
     const raidsCol = await loadRaidsCollection();
@@ -113,10 +127,7 @@ async function hatchRaid(id)  { //For use internally in the server application
 router.post('/raidgroups', async (req, res) => {
     let raidGroupsWithId = [];
     raidGroupsWithId = router.raidGroups.filter((raid) => {return raid.raidId == req.body.raidId});
-    if (raidGroupsWithId.length > 0) {
-        res.send(raidGroupsWithId);
-    } else res.status(404).send();
-    
+    res.send(raidGroupsWithId);
 });
 
 // Create raid group
@@ -124,14 +135,18 @@ router.post('/raidgroups', async (req, res) => {
 router.post('/raidgroups/create', async (req, res) => {
     //TODO if (raid exists){do things} else send 404 response
     const new_id = new mongodb.ObjectID();
-    router.raidGroups.push({
+    const raidGroup = {
         _id:            new_id,
         raidId:         req.body.raidId,
         name:           req.body.name,
         startTime:      new Date(req.body.startTime),
         participants:   []
-    });
+    };
+    router.raidGroups.push( raidGroup );
     res.status(200).send(new_id);
+
+    const raidGroupsCol = await loadRaidGroupCollection(); 
+    await raidGroupsCol.insertOne(raidGroup);
 });
 
 // Add participant to raid group
@@ -141,6 +156,9 @@ router.post('/raidgroups/participate', async (req, res) => {
     if (raidgroup) {
         raidgroup.participants.push(req.body.name);
         res.status(200).send();
+
+        const raidGroupsCol = await loadRaidGroupCollection(); 
+        await raidGroupsCol.updateOne({_id: new mongodb.ObjectID(req.body.id)}, { $push: { participants: req.body.name } });
     } else res.status(404).send();
 });
 
@@ -150,18 +168,19 @@ router.delete('/raidgroups/:raidId', async (req, res) => {
     router.raidGroups = router.raidGroups.filter((raid) => {return raid.raidId != req.params.raidId});
 
     //integrate db //TODO
-    /*await router.raidGroupsCol.deleteMany({"raidId": req.params.raidId});
+    const raidGroupsCol = await loadRaidGroupCollection(); 
+    await raidGroupsCol.deleteMany({"raidId": req.params.raidId});
     res.status(200).send();
-    router.raidGroups = await raidGroupsCol.find({}).toArray();*/
+    router.raidGroups = await raidGroupsCol.find({}).toArray();
 });
 
 async function deleteRaidGroups(raidId) {
     router.raidGroups = router.raidGroups.filter((raid) => {return raid.raidId != raidId});
 
     //integrate db //TODO
-    /*await router.raidGroupsCol.deleteMany({"raidId": req.params.raidId});
-    res.status(200).send();
-    router.raidGroups = await raidGroupsCol.find({}).toArray();*/
+    const raidGroupsCol = await loadRaidGroupCollection(); 
+    await raidGroupsCol.deleteMany({"raidId": raidId});
+    router.raidGroups = await raidGroupsCol.find({}).toArray();
 }
 
 // Deactivate a raid - set all the fields back to default and the state to inactive
@@ -221,6 +240,16 @@ async function loadRaidGroupCollection(){
     });
 
     return client.db('vue_express').collection('viby_raidGroups');
+}
+
+// Make connection to the current_pokemons collection
+async function loadPokemonsCollection(){
+    const client = await mongodb.MongoClient.connect(
+        'mongodb://abc123:abc123@ds239873.mlab.com:39873/vue_express',
+        {useNewUrlParser: true
+    });
+
+    return client.db('vue_express').collection('current_pokemons');
 }
 
 module.exports = router;
