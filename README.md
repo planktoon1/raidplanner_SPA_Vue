@@ -1,6 +1,6 @@
 # raidplanner_SPA_Vue
 The first version of my raidplanner app for Pokemon Go
-  * Made in Vue.js
+  * Made in Vue.js, Node, MongoDB, Express.js
   * My very first fullstack application
 
 
